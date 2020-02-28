@@ -1,0 +1,46 @@
+pipeline{
+agent any
+
+	stages{
+		stage('Checkout'){
+			steps{
+				echo 'Pulling the AvpsAutomation code...'
+				dir('AvpsAutomation'){
+					checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations:false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '1d6b27b1-9f8f-498c-aec1-d631c109e25e', url: 'https://github.com/SaadhyaV/DrivingLicenseApp.git']]])
+				}
+							
+			}
+		}
+		stage('Build'){
+			steps{
+				echo 'Build the code...'
+				bat 'ant build'
+			}
+		}
+		stage('warFile'){
+			steps{
+				echo 'War File Creation...'
+				bat 'ant warTarget'
+			}
+		}
+		stage('Deploy'){
+			steps{
+			echo 'Deploying the project...'
+			bat 'ant deploy'
+			}
+			
+		}
+		stage('Deploy'){
+			tools{
+				jdk: "ibmjdk"
+			}
+			steps{
+				echo 'Build and Deploy Service by repacking RES...'
+				bat 'java -version'
+				 dir ('PromotionEligibilityWrapper') {
+	                            bat 'ant deploy'                        
+	                }
+	         }
+		}
+	}
+}
