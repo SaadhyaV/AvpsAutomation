@@ -1,0 +1,384 @@
+<!-- Licensed Materials - Property of IBM                           -->
+<!-- 5725-B69 5655-Y07 5655-ILG                                     -->
+<!-- Copyright IBM Corp. 1987, 2011. All Rights Reserved            -->
+<!-- US Government Users Restricted Rights - Use, duplication or    -->
+<!-- disclosure restricted by GSA ADP Schedule Contract with        -->
+<!-- IBM Corp.                                                      -->
+<project name="samples.server" basedir=".">
+	<property name="jrules.was7.scripts.dir" value="."/>
+	<property file="${jrules.was7.scripts.dir}/build.properties" />
+	<import file="${jrules.was7.scripts.dir}/check.xml"/>
+
+	<!-- To manage RTS Sample Database Content (RES Server and RSO Tutorial Location -->
+	<property name="teamserver.home" value="${dc.home}/teamserver"/>
+	<import file="${teamserver.home}/bin/build.xml" optional="true"/>
+
+
+	<target name="delete.new.installation.files">
+		<delete failonerror="false" file="${ds.home}/shared/data/ds_just_installed"/>
+		<delete failonerror="false" file="${ds.home}/shared/data/dc_just_installed"/>
+	</target>
+
+
+	<target name="init.sample.server" >
+		<condition property="script.extension" value="bat" else="sh">
+			<os family="windows" />
+		</condition>
+	</target>
+
+
+	<target name="start.server" depends="abortIfWasPropertiesIsNotSet">
+		<antcall target="abortIfWasHomeIsInvalid"/>
+		<antcall target="abortIfAccessDeniedToWODMHOME"/>
+		<antcall target="abortIfAccessDeniedToWASHOME"/>
+		<antcall target="abortIfUpgrading"/>
+		<antcall target="abortIfOneOfferingIsAlreadydeployed"/>
+		<antcall target="createSamplesProfileIfNeeded" />
+		<antcall target="augmentSamplesProfileIfNeeded" />
+		<antcall target="configureForFirstStartIfNeeded"/>
+		<antcall target="delegate.to.ws_ant">
+			<param name="target" value="wsbuild.startServer"/>
+		</antcall>
+
+		<antcall target="update.decisioncenter.db" />
+		<antcall target="delete.new.installation.files" />
+	</target>
+
+	<target name="configureForFirstStartIfNeeded" depends="checkForFirstStart" unless="isNotFirstStart">
+		<antcall target="delegate.to.ws_ant">
+			<param name="target" value="configureForFirstStart"/>
+		</antcall>
+		<touch file="${data.home}/firstStartDone"/>
+	</target>
+
+	<target name="force.start.server">
+		<antcall target="createSamplesProfileIfNeeded" />
+		<antcall target="augmentSamplesProfileIfNeeded" />
+		<antcall target="configureForFirstStartIfNeeded"/>
+		<antcall target="delegate.to.ws_ant">
+			<param name="target" value="wsbuild.forceStartServer"/>
+		</antcall>
+		<antcall target="delete.new.installation.files" />
+	</target>
+
+	<target name="start.server.debug">
+		<antcall target="delete.new.installation.files" />
+		<antcall target="delegate.to.ws_ant">
+			<param name="target" value="startServerDebug"/>
+		</antcall>
+		<antcall  target="update.decisioncenter.db" />
+	</target>
+
+	<target name="stop.server">
+		<antcall target="delegate.to.ws_ant">
+			<param name="target" value="stopServer"/>
+		</antcall>
+	</target>
+
+	<target name="force.stop.server">
+		<antcall target="delegate.to.ws_ant">
+			<param name="target" value="forceStopServer"/>
+		</antcall>
+	</target>
+
+	<target name="configure.server">
+		<antcall target="delegate.to.ws_ant">
+			<param name="target" value="ws.configure"/>
+		</antcall>
+	</target>
+
+	<target name="destroy.profile">
+		<antcall target="delegate.to.ws_ant">
+			<param name="target" value="destroySamplesProfile"/>
+		</antcall>
+	</target>
+
+	<target name="force.destroy.profile">
+		<delete dir="${was.home}/AppServer/profiles/${profile.name}" failonerror="true" />
+		
+		<replaceregexp file="profileRegistryTransformer.xsl"
+	      match="name=''"
+	      replace="name='${profile.name}'"
+	      byline="true"/>
+		
+		<xslt in="${was.home}/AppServer/properties/profileRegistry.xml" out="profileRegistry_transformed.xml" style="profileRegistryTransformer.xsl">
+			<param name="profileName" expression="${profile.name}"/>
+		</xslt>
+		
+		<move file="profileRegistry_transformed.xml" tofile="${was.home}/AppServer/properties/profileRegistry.xml"/>
+	</target>
+
+	<target name="delegate.to.ws_ant" depends="init.sample.server">
+		<exec executable="${was.home}/AppServer/bin/ws_ant.${script.extension}">
+			<arg value="-f" />
+			<arg value="${jrules.was7.scripts.dir}/wsBuild.xml" />
+			<arg value="${target}" />
+			<arg value="-Dscript.extension=${script.extension}" />
+			<arg value="-Dwas.home=${was.home}/AppServer" />
+			<arg value="-Dds.home=${ds.home}" />
+			<arg value="-Ddc.home=${dc.home}" />
+		</exec>
+	</target>
+
+
+	<target name="update.decisioncenter.db" depends="checkIfIsInstallingDC" if="installingDC">
+
+		<!-- prefix the property to handle already defined server and port -->
+		<property file="${data.home}/was.properties" prefix="local"/>
+
+		<!-- Create server for DVS execution  -->
+		<antcall target="set-samples-settings">
+			<param name="username" value="${rtsAdmin.login}"/>
+			<param name="password" value="${rtsAdmin.password}"/>
+			<param name="serverURL" value="http://${local.server.host}:${local.server.port}/teamserver"/>
+			<param name="datasourceName" value="${datasourceName}"/>
+			<param name="servername" value="Sample"/>
+			<param name="resuser" value="resAdmin"/>
+			<param name="respwd" value="resAdmin"/>
+			<param name="resurl" value="http://localhost:${local.server.port}/res"/>
+			<param name="kind" value="res"/>
+		</antcall>
+		<!-- Create server for WBE execution  -->
+		<antcall target="set-samples-settings">
+			<param name="username" value="${rtsAdmin.login}"/>
+			<param name="password" value="${rtsAdmin.password}"/>
+			<param name="serverURL" value="http://${local.server.host}:${local.server.port}/teamserver"/>
+			<param name="datasourceName" value="${datasourceName}"/>
+			<param name="servername" value="Events"/>
+			<param name="resuser" value="wbeAdmin"/>
+			<param name="respwd" value="wbeAdmin"/>
+			<param name="resurl" value="http://${local.server.host}:${local.server.port}/wbe"/>
+			<param name="kind" value="wbe"/>
+		</antcall>
+		<!-- Create server for RSO document location -->
+		<antcall target="set-samples-settings">
+			<param name="username" value="${rtsAdmin.login}"/>
+			<param name="password" value="${rtsAdmin.password}"/>
+			<param name="serverURL" value="http://${local.server.host}:${local.server.port}/teamserver"/>
+			<param name="datasourceName" value="${datasourceName}"/>
+			<param name="projectname" value="loanvalidation-rules"/>
+			<param name="servername" value="Sample RuleDoc Location"/>
+			<param name="resuser" value=""/>
+			<param name="respwd" value=""/>
+			<param name="resurl" value="${teamserver.home}/ruledocs"/>
+			<param name="kind" value="rso"/>
+		</antcall>
+		<zip destfile="${dc.home}/shared/data/derby/rtsdb-backup.zip" 
+          	basedir="${dc.home}/shared/data/derby" update="false" includes="rtsdb/**" excludes="rtsdb/*.lck" />
+	</target>
+
+	<macrodef name="macro.delegate.to.ws_ant">
+		<attribute name="target" />
+		<element name="args-def" optional="true" />
+		<sequential>
+			<condition property="script.extension" value="bat" else="sh">
+				<os family="windows" />
+			</condition>
+
+			<exec executable="${was.home}/bin/ws_ant.${script.extension}">
+				<arg value="-f" />
+				<arg value="${jrules.was7.scripts.dir}/wsBuild.xml" />
+				<arg value="@{target}" />
+				<arg value="-Dscript.extension=${script.extension}" />
+				<arg value="-Dwas.home=${was.home}" />
+				<arg value="-Dds.home=${ds.home}" />
+				<arg value="-Ddc.home=${ds.home}" />
+				<args-def />
+			</exec>
+		</sequential>
+	</macrodef>
+
+	<macrodef name="create.datasource">
+		<attribute name="datasource.name"/>
+		<attribute name="provider.name" default="Derby JDBC Provider"/>
+		<attribute name="database.name"/>
+		<attribute name="user.name"/>
+		<attribute name="password"/>
+		<sequential>
+			<antcall target="create.datasource.ws.ant.wrapper">
+				<param name="datasource.name.param" value="@{datasource.name}"/>
+				<param name="provider.name.param" value="@{provider.name}"/>
+				<param name="database.name.param" value="@{database.name}"/>
+				<param name="user.name.param" value="@{user.name}"/>
+				<param name="password.param" value="@{password}"/>
+			</antcall>
+		</sequential>
+	</macrodef>
+
+
+	<target name="create.datasource.ws.ant.wrapper" depends="init.sample.server">
+		<macro.delegate.to.ws_ant target="createDataSource">
+			<args-def>
+				<arg value="-Ddatasource.name.param=${datasource.name.param}" />
+				<arg value="-Dprovider.name.param=${provider.name.param}" />
+				<arg value="-Ddatabase.name.param=${database.name.param}" />
+				<arg value="-Duser.name.param=${user.name.param}" />
+				<arg value="-Dpassword.param=${password.param}" />
+			</args-def>
+		</macro.delegate.to.ws_ant>
+	</target>
+
+	<target name="undeploy.all">
+		<macro.delegate.to.ws_ant target="ws.undeploy.all" />
+	</target>
+
+	<target name="deploy.all">
+		<macro.delegate.to.ws_ant target="ws.deploy.all" />
+	</target>
+
+	<macrodef name="module.undeploy">
+		<attribute name="name"/>
+		<sequential>
+			<macro.delegate.to.ws_ant target="ws.undeploy">
+				<args-def>
+					<arg value="-Dapplication.name=@{name}" />
+				</args-def>
+			</macro.delegate.to.ws_ant>
+		</sequential>
+	</macrodef>
+
+	<macrodef name="module.deploy">
+		<attribute name="name"/>
+		<attribute name="path"/>
+		<sequential>
+			<macro.delegate.to.ws_ant target="ws.deploy">
+				<args-def>
+					<arg value="-Dapplication.name=@{name}" />
+					<arg value="-Dmodule.path=@{path}" />
+				</args-def>
+			</macro.delegate.to.ws_ant>
+		</sequential>
+	</macrodef>
+	
+	<target name="runWBESetPort">
+		<exec executable="${ds.home}/config/was/set_port.${script.extension}"/>
+	</target>
+
+	<target name="createSamplesProfileIfNeeded" depends="checkIfSamplesProfileExists,init.sample.server" unless="samplesProfileExists">
+		<samples.echo level="info" key="GBRPS0002I">
+			<arg value="${was.home}/AppServer/profiles/${profile.name}"/>
+		</samples.echo>
+		<samples.echo level="info" key="GBRPS0004I">
+			<arg value="${cell.name}"/>
+		</samples.echo>
+		<samples.echo level="info" key="GBRPS0005I">
+			<arg value="${node.name}"/>
+		</samples.echo>
+		<samples.echo level="info" key="GBRPS0007I"/>
+
+		<exec executable="${was.home}/AppServer/bin/manageprofiles.${script.extension}">
+			<arg value="-create"/>
+			<arg value="-templatePath"/>
+			<arg value="${was.home}/AppServer/profileTemplates/default"/>
+			<arg value="-profileName"/>
+			<arg value="${profile.name}"/>
+			<arg value="-profilePath"/>
+			<arg value="${profile.home}/${profile.name}"/>
+			<arg value="-cellName"/>
+			<arg value="${cell.name}"/>
+			<arg value="-nodeName"/>
+			<arg value="${node.name}"/>
+			<arg value="-serverName"/>
+			<arg value="${server.name}"/>
+			<arg value="-enableAdminSecurity"/>
+			<arg value="true"/>
+			<arg value="-adminUserName"/>
+			<arg value="${credential.user.name}"/>
+			<arg value="-adminPassword"/>
+			<arg value="${credential.user.password}"/>
+			<arg value="-samplesPassword"/>
+			<arg value="${credential.user.password}"/>
+		</exec>
+		<mkdir dir="${data.home}"/>
+
+	</target>
+
+
+	<target name="augmentSamplesProfileIfNeeded" depends="init.sample.server">
+		<antcall target="augmentWithWBEIfNeeded"/>
+		<antcall target="augmentWithBusinessSpaceIfNeeded"/>
+	</target>
+
+	
+
+	<target name="setWBEHomeAsDSHomeIfNeeded" depends="checkIfDSInstalled" if="dsInstalled">
+		<property name="wbe.home" value="${ds.home}"/>
+	</target>
+
+	<target name="setWBEHomeAsDCHomeIfNeeded" depends="checkIfDCInstalled" if="dcInstalled">
+		<property name="wbe.home" value="${dc.home}"/>
+	</target>
+
+	<target name="augmentWithWBEWithTesterWidget" depends="checkIfTesterWidgetIsInstalled" if="testerWidgetIsInstalled">
+		<exec executable="${was.home}/AppServer/bin/manageprofiles.${script.extension}">
+			<arg value="-augment"/>
+			<arg value="-templatePath"/>
+			<arg value="${was.home}/AppServer/profileTemplates/wbe/default"/>
+			<arg value="-profileName"/>
+			<arg value="${profile.name}"/>
+			<arg value="-cellName"/>
+			<arg value="${cell.name}"/>
+			<arg value="-nodeName"/>
+			<arg value="${node.name}"/>
+			<arg value="-serverName"/>
+			<arg value="${server.name}"/>
+			<arg value="-wbeMsgingType"/>
+			<arg value="Default_Messaging"/>
+			<arg value="-wbeDbType"/>
+			<arg value="Derby_Embedded"/>
+			<arg value="-wbeHome"/>
+			<arg value="${ds.home}"/>
+			<arg value="-enableAdminSecurity"/>
+			<arg value="true"/>
+			<arg value="-adminUserName"/>
+			<arg value="${credential.user.name}"/>
+			<arg value="-adminPassword"/>
+			<arg value="${credential.user.password}"/>
+			<arg value="-enableTester"/>
+			<arg value="true"/>
+		</exec>
+	</target>
+
+	<target name="augmentWithWBEWithoutTesterWidget" depends="checkIfTesterWidgetIsInstalled" unless="testerWidgetIsInstalled">
+		<exec executable="${was.home}/AppServer/bin/manageprofiles.${script.extension}">
+			<arg value="-augment"/>
+			<arg value="-templatePath"/>
+			<arg value="${was.home}/AppServer/profileTemplates/wbe/default"/>
+			<arg value="-profileName"/>
+			<arg value="${profile.name}"/>
+			<arg value="-cellName"/>
+			<arg value="${cell.name}"/>
+			<arg value="-nodeName"/>
+			<arg value="${node.name}"/>
+			<arg value="-serverName"/>
+			<arg value="${server.name}"/>
+			<arg value="-wbeMsgingType"/>
+			<arg value="Default_Messaging"/>
+			<arg value="-wbeDbType"/>
+			<arg value="Derby_Embedded"/>
+			<arg value="-wbeHome"/>
+			<arg value="${ds.home}"/>
+			<arg value="-enableAdminSecurity"/>
+			<arg value="true"/>
+			<arg value="-adminUserName"/>
+			<arg value="${credential.user.name}"/>
+			<arg value="-adminPassword"/>
+			<arg value="${credential.user.password}"/>
+		</exec>
+	</target>
+
+	
+	<target name="augmentWithWBEIfNeeded" depends="checkToAugmentWithWBE" if="shouldAugmentWithWBE">
+		<samples.echo level="info" key="GBRPS0007I"/>
+		
+		<antcall target="augmentWithWBEWithTesterWidget"/>
+		<antcall target="augmentWithWBEWithoutTesterWidget"/>
+		
+		<mkdir dir="${data.home}"/>
+		<touch file="${data.home}/WBEInside"/>
+
+		<antcall target="runWBESetPort"/>
+	</target>
+
+
+</project>

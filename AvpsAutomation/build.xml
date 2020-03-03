@@ -4,13 +4,15 @@
               To include a user specific buildfile here, simply create one in the same
               directory with the processing instruction <?eclipse.ant.import?>
               as the first entry and export the buildfile again. -->
-<project basedir="." default="warTarget" name="AvpsAutomation">
+<project basedir="." default="warTarget" name="AvpsAutomation"  xmlns:wlp="antlib:com.ibm.websphere.wlp.ant">
     <property environment="env"/>
     <property name="ECLIPSE_HOME" value="../../../../MYWORK- D DRIVE/eclipse-jee-oxygen-3a-win32-x86_64/eclipse/"/>
     <property name="debuglevel" value="source,lines,vars"/>
-	<property name="was_home" value="C:\IBM\WebSphere\AppServer"></property>		
-    <property name="target" value="1.8"/>
+	<property name="target" value="1.8"/>
     <property name="source" value="1.8"/>
+	<property file="${basedir}/build.properties" />
+	<property file="${parent.home}/build.properties" />
+
 	
 	<path id="Apache Tomcat v9.0 [Apache Tomcat v9.0].libraryclasspath">
         <pathelement location="../../../../Program Files/Apache Software Foundation/Tomcat 9.0/lib/annotations-api.jar"/>
@@ -91,11 +93,9 @@
     </target>
               	
     <target name="warTarget" depends="build-project">
-    	<mkdir dir="build/warfile"/>
-    	<war destfile="build/warfile/AvpsAutomation.war" needxmlfile="false" basedir="build/classes"></war>
-    	
+    	<war destfile="${basedir}/AvpsAutomation.war" needxmlfile="false" basedir="build/classes"></war>
     </target>
-	<target name="deploy">
 	
-	</target>
+	
+		
 </project>
