@@ -62,7 +62,7 @@
         <mkdir dir="build/WEB-INF" />
     	<mkdir dir="build/WEB-INF/lib"/>
 	 	<mkdir dir="build/classes"/>
-    	<mkdir dir="build/WEB-INF/META-INF"/>
+    	
     	<copy includeemptydirs="false" todir="build/classes">
             <fileset dir="src">
                 <exclude name="**/*.java"/>
@@ -74,8 +74,8 @@
             </fileset>
     	</copy>
     	<copy includeemptydirs="false" todir="build">
-    		<fileset dir="WebContent">
-                <include name="**/*"/>
+    		<fileset dir="${basedir}/WebContent">
+                <include name="**/*.*"/>
             </fileset>
 		</copy>
     </target>
