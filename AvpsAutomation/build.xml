@@ -62,16 +62,26 @@
        	<mkdir dir="build/classes"/>
     	<copy includeemptydirs="false" todir="build/classes">
             <fileset dir="src">
-                <include name="**/*.java"/>
+                <exclude name="**/*.java"/>
             </fileset>
         </copy>
+    	<copy includeemptydirs="false" todir="build/WEB-INF/lib">
+            <fileset dir="WebContent/WEB-INF/lib">
+                <include name="**/*.jar"/>
+            </fileset>
+    	</copy>
     	<copy includeemptydirs="false" todir="build">
-            <fileset dir="WebContent" />
+    		<fileset dir="WebContent">
+                <include name="**/*.html"/>
+            </fileset>
 		</copy>
     </target>
     <target name="clean">
-     	<delete dir="build"/>
-    	<delete dir="build/classes"/>        
+    	<delete dir="build"/>
+        <delete dir="build/WEB-INF" />
+    	<delete dir="build/WEB-INF/lib"/>
+    	<delete dir="build/classes"/>
+    	<delete dir="build/WEB-INF/META-INF"/>   
     </target>
     <target depends="clean" name="cleanall"/>
     <target depends="build-subprojects,build-project" name="build"/>
