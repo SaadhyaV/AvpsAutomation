@@ -68,16 +68,7 @@
                 <exclude name="**/*.java"/>
             </fileset>
         </copy>
-    	<copy includeemptydirs="false" todir="build/WEB-INF/lib">
-            <fileset dir="WebContent/WEB-INF/lib">
-                <include name="**/*.jar"/>
-            </fileset>
-    	</copy>
-    	<copy includeemptydirs="false" todir="build">
-    		<fileset dir="${basedir}/WebContent">
-                <include name="**/*.*"/>
-            </fileset>
-		</copy>
+    	
     </target>
     <target name="clean">
     	<delete dir="build"/>
@@ -101,6 +92,12 @@
         <copy todir="${ant.library.dir}">
             <fileset dir="${ECLIPSE_HOME}/plugins" includes="org.eclipse.jdt.core_*.jar"/>
         </copy>
+    	
+    	<copy includeemptydirs="false" todir="build">
+    		<fileset dir="${basedir}/WebContent">
+                <include name="**/*.*"/>
+            </fileset>
+		</copy>
         <unzip dest="${ant.library.dir}">
             <patternset includes="jdtCompilerAdapter.jar"/>
             <fileset dir="${ECLIPSE_HOME}/plugins" includes="org.eclipse.jdt.core_*.jar"/>
